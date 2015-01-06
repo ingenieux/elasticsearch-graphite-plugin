@@ -14,14 +14,47 @@
     <artifactId>elasticsearch-newrelic-plugin</artifactId>
     <version>0.2-SNAPSHOT</version>
     <packaging>jar</packaging>
-    <description>New Relic monitoring plugin for Elasticsearch</description>
+    <description>New Relic monitoring plugin for Elasticsearch - Ported from Graphite Original</description>
     <url>https://github.com/ingenieux/elasticsearch-newrelic-plugin/</url>
 
     <properties>
         <elasticsearch.version>1.3.2</elasticsearch.version>
         <hamcrest.version>1.3</hamcrest.version>
         <skipTests>true</skipTests>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <licenses>
+        <license>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <name>Apache 2.0</name>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>ingenieux</name>
+        <url>http://ingenieux.com.br</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <id>aldrinleal</id>
+            <name>Aldrin Leal</name>
+            <timezone>-3</timezone>
+        </developer>
+    </developers>
+
+    <issueManagement>
+        <system>github</system>
+        <url>https://github.com/ingenieux/elasticsearch-newrelic-plugin/</url>
+    </issueManagement>
+
+    <scm>
+        <connection>scm:git:http://github.com/ingenieux/elasticsearch-newrelic-plugin</connection>
+        <developerConnection>scm:git:ssh://git@github.com/ingenieux/elasticsearch-newrelic-plugin.git
+        </developerConnection>
+        <url>http://github.com/ingenieux/elasticsearch-newrelic-plugin</url>
+    </scm>
 
     <dependencies>
         <dependency>
