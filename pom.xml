@@ -10,7 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.ingenieux</groupId>
     <artifactId>elasticsearch-newrelic-plugin</artifactId>
-    <version>0.2</version>
+    <version>0.3-SNAPSHOT</version>
     <packaging>jar</packaging>
     <description>New Relic monitoring plugin for Elasticsearch - Ported from Graphite Original</description>
     <url>https://github.com/ingenieux/elasticsearch-newrelic-plugin/</url>
