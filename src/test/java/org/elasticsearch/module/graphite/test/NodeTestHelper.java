@@ -25,16 +25,16 @@ public class NodeTestHelper {
         settingsBuilder.put("index.number_of_shards", 1);
         settingsBuilder.put("index.number_of_replicas", 1);
 
-        settingsBuilder.put("metrics.graphite.host", "localhost");
-        settingsBuilder.put("metrics.graphite.port", graphitePort);
-        settingsBuilder.put("metrics.graphite.every", refreshInterval);
+        settingsBuilder.put("metrics.newrelic.host", "localhost");
+        settingsBuilder.put("metrics.newrelic.port", graphitePort);
+        settingsBuilder.put("metrics.newrelic.every", refreshInterval);
 
         if (Strings.hasLength(includeRegex)) {
-            settingsBuilder.put("metrics.graphite.include", includeRegex);
+            settingsBuilder.put("metrics.newrelic.include", includeRegex);
         }
 
         if (Strings.hasLength(excludeRegex)) {
-            settingsBuilder.put("metrics.graphite.exclude", excludeRegex);
+            settingsBuilder.put("metrics.newrelic.exclude", excludeRegex);
         }
 
         LogConfigurator.configure(settingsBuilder.build());

@@ -1,4 +1,6 @@
-package org.elasticsearch.service.graphite;
+package org.elasticsearch.service.newrelic;
+
+import com.newrelic.api.agent.NewRelic;
 
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
 import org.elasticsearch.common.logging.ESLogger;
@@ -26,22 +28,15 @@ import org.elasticsearch.monitor.process.ProcessStats;
 import org.elasticsearch.threadpool.ThreadPoolStats;
 import org.elasticsearch.transport.TransportStats;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.net.Socket;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-public class GraphiteReporter {
+public class NewRelicReporter {
 
-    private static final ESLogger logger = ESLoggerFactory.getLogger(GraphiteReporter.class.getName());
-    private Writer writer;
-    private final String host;
-    private final int port;
+    private static final ESLogger logger = ESLoggerFactory.getLogger(NewRelicReporter.class.getName());
+
     private final String prefix;
     private List<IndexShard> indexShards;
     private NodeStats nodeStats;
@@ -51,11 +46,9 @@ public class GraphiteReporter {
     private final NodeIndicesStats nodeIndicesStats;
 
 
-    public GraphiteReporter(String host, int port, String prefix, NodeIndicesStats nodeIndicesStats,
+    public NewRelicReporter(String prefix, NodeIndicesStats nodeIndicesStats,
                             List<IndexShard> indexShards, NodeStats nodeStats,
                             Pattern graphiteInclusionRegex, Pattern graphiteExclusionRegex) {
-        this.host = host;
-        this.port = port;
         this.prefix = prefix;
         this.indexShards = indexShards;
         this.nodeStats = nodeStats;
@@ -66,23 +59,9 @@ public class GraphiteReporter {
     }
 
     public void run() {
-        Socket socket = null;
-        try {
-            socket = getSocket();
-            writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-
             sendNodeIndicesStats();
             sendIndexShardStats();
             sendNodeStats();
-
-            writer.flush();
-        } catch (Exception e) {
-            logException(e);
-            flushWriter();
-        } finally {
-            closeSocket(socket);
-            writer = null;
-        }
     }
 
     private void sendNodeStats() {
@@ -383,34 +362,30 @@ public class GraphiteReporter {
         sendInt(name, "evictions", fieldDataStats.getEvictions());
     }
 
-    protected void sendToGraphite(String name, String value) {
-        try {
-            String nameToSend = sanitizeString(name);
-            // check if this value is excluded
-            if (graphiteExclusionRegex != null && graphiteExclusionRegex.matcher(nameToSend).matches()) {
-                if (graphiteInclusionRegex == null ||
-                    (graphiteInclusionRegex != null && !graphiteInclusionRegex.matcher(nameToSend).matches())) {
-                    return;
-                }
+    protected void sendToNewRelic(String name, double value) {
+        String nameToSend = sanitizeString(name);
+        // check if this value is excluded
+        if (graphiteExclusionRegex != null && graphiteExclusionRegex.matcher(nameToSend).matches()) {
+            if (graphiteInclusionRegex == null ||
+                (graphiteInclusionRegex != null && !graphiteInclusionRegex.matcher(nameToSend).matches())) {
+                return;
             }
-            writer.write(nameToSend);
-            writer.write(' ');
-            writer.write(value);
-            writer.write(' ');
-            writer.write(Long.toString(timestamp));
-            writer.write('\n');
-            writer.flush();
-        } catch (IOException e) {
-            logger.error("Error sending to Graphite:", e);
         }
+
+        if (logger.isTraceEnabled())
+        {
+            logger.trace(" * {}: {}", name, value);
+        }
+
+        NewRelic.recordMetric(name, (float) value);
     }
 
     protected void sendInt(String name, String valueName, long value) {
-        sendToGraphite(name + "." + valueName, String.format("%d", value));
+        sendToNewRelic(name + "." + valueName, (float) value);
     }
 
     protected void sendFloat(String name, String valueName, double value) {
-        sendToGraphite(name + "." + valueName, String.format("%2.2f", value));
+        sendToNewRelic(name + "." + valueName, (float) value);
     }
 
     protected String sanitizeString(String s) {
@@ -419,37 +394,5 @@ public class GraphiteReporter {
 
     protected String buildMetricName(String name) {
         return prefix + "." + name;
-    }
-
-    private void flushWriter() {
-        if (writer != null) {
-            try {
-                writer.flush();
-            } catch (IOException e1) {
-                logger.error("Error while flushing writer:", e1);
-            }
-        }
-    }
-
-    public Socket getSocket() throws Exception {
-        return new Socket(host, port);
-    }
-
-    private void closeSocket(Socket socket) {
-        if (socket != null) {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                logger.error("Error while closing socket:", e);
-            }
-        }
-    }
-
-    private void logException(Exception e) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Error writing to Graphite", e);
-        } else {
-            logger.warn("Error writing to Graphite: {}", e.getMessage());
-        }
     }
 }

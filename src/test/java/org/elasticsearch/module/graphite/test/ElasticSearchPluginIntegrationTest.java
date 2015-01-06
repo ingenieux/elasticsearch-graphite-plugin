@@ -16,7 +16,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
-public class GraphitePluginIntegrationTest {
+public class ElasticSearchPluginIntegrationTest {
 
     public static final int GRAPHITE_SERVER_PORT = 12345;
 
@@ -50,9 +50,9 @@ public class GraphitePluginIntegrationTest {
         Thread.sleep(2000);
 
         ensureValidKeyNames();
-        assertGraphiteMetricIsContained("elasticsearch." + clusterName + ".indexes." + index + ".id.0.indexing._all.indexCount 1");
-        assertGraphiteMetricIsContained("elasticsearch." + clusterName + ".indexes." + index + ".id.0.indexing." + type + ".indexCount 1");
-        assertGraphiteMetricIsContained("elasticsearch." + clusterName + ".node.jvm.threads.peakCount ");
+        assertGraphiteMetricIsContained("newrelic." + clusterName + ".indexes." + index + ".id.0.indexing._all.indexCount 1");
+        assertGraphiteMetricIsContained("newrelic." + clusterName + ".indexes." + index + ".id.0.indexing." + type + ".indexCount 1");
+        assertGraphiteMetricIsContained("newrelic." + clusterName + ".node.jvm.threads.peakCount ");
     }
 
     @Test
@@ -66,7 +66,7 @@ public class GraphitePluginIntegrationTest {
         Thread.sleep(2000);
 
         ensureValidKeyNames();
-        assertGraphiteMetricIsNotContained("elasticsearch." + clusterName + ".node.jvm.threads.peakCount ");
+        assertGraphiteMetricIsNotContained("newrelic." + clusterName + ".node.jvm.threads.peakCount ");
     }
 
     @Test
@@ -81,8 +81,8 @@ public class GraphitePluginIntegrationTest {
         Thread.sleep(2000);
 
         ensureValidKeyNames();
-        assertGraphiteMetricIsNotContained("elasticsearch." + clusterName + ".indexes." + index + ".id.0.indexing._all.indexCount 1");
-        assertGraphiteMetricIsContained("elasticsearch." + clusterName + ".node.jvm.threads.peakCount ");
+        assertGraphiteMetricIsNotContained("newrelic." + clusterName + ".indexes." + index + ".id.0.indexing._all.indexCount 1");
+        assertGraphiteMetricIsContained("newrelic." + clusterName + ".node.jvm.threads.peakCount ");
     }
 
     @Test(expected = ProvisionException.class)
@@ -108,7 +108,7 @@ public class GraphitePluginIntegrationTest {
 
         // wait for master fail over and writing to graph reporter
         Thread.sleep(2000);
-        assertGraphiteMetricIsContained("elasticsearch." + clusterName + ".indexes." + index + ".id.0.indexing._all.indexCount 1");
+        assertGraphiteMetricIsContained("newrelic." + clusterName + ".indexes." + index + ".id.0.indexing._all.indexCount 1");
     }
 
     // the stupid hamcrest matchers have compile erros depending whether they run on java6 or java7, so I rolled my own version

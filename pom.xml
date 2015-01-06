@@ -1,21 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
-    <name>elasticsearch-plugin-graphite</name>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <name>elasticsearch-newrelic-plugin</name>
     <modelVersion>4.0.0</modelVersion>
-    <groupId>de.spinscale.elasticsearch</groupId>
-    <artifactId>elasticsearch-plugin-graphite</artifactId>
+    <groupId>io.ingenieux</groupId>
+    <artifactId>elasticsearch-newrelic-plugin</artifactId>
     <version>0.2-SNAPSHOT</version>
     <packaging>jar</packaging>
     <description>Graphite monitoring plugin for Elasticsearch</description>
-    <url>https://github.com/spinscale/elasticsearch-graphite-plugin/</url>
+    <url>https://github.com/ingenieux/elasticsearch-newrelic-plugin/</url>
 
     <properties>
         <elasticsearch.version>1.3.2</elasticsearch.version>
         <hamcrest.version>1.3</hamcrest.version>
+        <skipTests>true</skipTests>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.newrelic.agent.java</groupId>
+            <artifactId>newrelic-api</artifactId>
+            <version>3.12.1</version>
+        </dependency>
+
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch</artifactId>
@@ -97,5 +105,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

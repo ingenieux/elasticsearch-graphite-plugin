@@ -1,4 +1,4 @@
-package org.elasticsearch.service.graphite;
+package org.elasticsearch.service.newrelic;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
@@ -21,52 +21,53 @@ import org.elasticsearch.node.service.NodeService;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class GraphiteService extends AbstractLifecycleComponent<GraphiteService> {
+public class NewRelicService extends AbstractLifecycleComponent<NewRelicService> {
 
     private final ClusterService clusterService;
     private final IndicesService indicesService;
+    private final boolean enabledP;
     private NodeService nodeService;
-    private final String graphiteHost;
-    private final Integer graphitePort;
-    private final TimeValue graphiteRefreshInternal;
-    private final String graphitePrefix;
-    private Pattern graphiteInclusionRegex;
-    private Pattern graphiteExclusionRegex;
+    private final TimeValue refreshInternal;
+    private final String prefix;
+    private Pattern inclusionRegex;
+    private Pattern exclusionRegex;
 
-    private volatile Thread graphiteReporterThread;
+    private volatile Thread reporterThread;
     private volatile boolean closed;
 
-    @Inject public GraphiteService(Settings settings, ClusterService clusterService, IndicesService indicesService,
+    @Inject public NewRelicService(Settings settings, ClusterService clusterService,
+                                   IndicesService indicesService,
                                    NodeService nodeService) {
         super(settings);
         this.clusterService = clusterService;
         this.indicesService = indicesService;
         this.nodeService = nodeService;
-        graphiteRefreshInternal = settings.getAsTime("metrics.graphite.every", TimeValue.timeValueMinutes(1));
-        graphiteHost = settings.get("metrics.graphite.host");
-        graphitePort = settings.getAsInt("metrics.graphite.port", 2003);
-        graphitePrefix = settings.get("metrics.graphite.prefix", "elasticsearch" + "." + settings.get("cluster.name"));
-        String graphiteInclusionRegexString = settings.get("metrics.graphite.include");
+        this.enabledP = settings.getAsBoolean("metrics.newrelic.enabled", false);
+        refreshInternal = settings.getAsTime("metrics.newrelic.every", TimeValue.timeValueMinutes(1));
+        prefix = settings.get("metrics.newrelic.prefix", "elasticsearch." + settings.get("cluster.name"));
+        String graphiteInclusionRegexString = settings.get("metrics.newrelic.include");
         if (graphiteInclusionRegexString != null) {
-            graphiteInclusionRegex = Pattern.compile(graphiteInclusionRegexString);
+            inclusionRegex = Pattern.compile(graphiteInclusionRegexString);
         }
-        String graphiteExclusionRegexString = settings.get("metrics.graphite.exclude");
+        String graphiteExclusionRegexString = settings.get("metrics.newrelic.exclude");
         if (graphiteExclusionRegexString != null) {
-            graphiteExclusionRegex = Pattern.compile(graphiteExclusionRegexString);
+            exclusionRegex = Pattern.compile(graphiteExclusionRegexString);
         }
     }
 
     @Override
     protected void doStart() throws ElasticsearchException {
-        if (graphiteHost != null && graphiteHost.length() > 0) {
-            graphiteReporterThread = EsExecutors.daemonThreadFactory(settings, "graphite_reporter").newThread(new GraphiteReporterThread(graphiteInclusionRegex, graphiteExclusionRegex));
-            graphiteReporterThread.start();
+        if (enabledP) {
+            reporterThread = EsExecutors.daemonThreadFactory(settings, "newrelic_reporter").newThread(new NewRelicReporterThread(
+                inclusionRegex, exclusionRegex));
+            reporterThread.start();
             StringBuilder sb = new StringBuilder();
-            if (graphiteInclusionRegex != null) sb.append("include [").append(graphiteInclusionRegex).append("] ");
-            if (graphiteExclusionRegex != null) sb.append("exclude [").append(graphiteExclusionRegex).append("] ");
-            logger.info("Graphite reporting triggered every [{}] to host [{}:{}] with metric prefix [{}] {}", graphiteRefreshInternal, graphiteHost, graphitePort, graphitePrefix, sb);
+            if (inclusionRegex != null) sb.append("include [").append(inclusionRegex).append("] ");
+            if (exclusionRegex != null) sb.append("exclude [").append(exclusionRegex).append("] ");
+            logger.info("Reporting triggered every [{}] with metric prefix [{}] {}",
+                        refreshInternal, prefix, sb);
         } else {
-            logger.error("Graphite reporting disabled, no graphite host configured");
+            logger.error("Newrelic reporting disabled.");
         }
     }
 
@@ -75,8 +76,8 @@ public class GraphiteService extends AbstractLifecycleComponent<GraphiteService>
         if (closed) {
             return;
         }
-        if (graphiteReporterThread != null) {
-            graphiteReporterThread.interrupt();
+        if (reporterThread != null) {
+            reporterThread.interrupt();
         }
         closed = true;
         logger.info("Graphite reporter stopped");
@@ -85,12 +86,13 @@ public class GraphiteService extends AbstractLifecycleComponent<GraphiteService>
     @Override
     protected void doClose() throws ElasticsearchException {}
 
-    public class GraphiteReporterThread implements Runnable {
+    public class NewRelicReporterThread implements Runnable {
 
         private final Pattern graphiteInclusionRegex;
         private final Pattern graphiteExclusionRegex;
 
-        public GraphiteReporterThread(Pattern graphiteInclusionRegex, Pattern graphiteExclusionRegex) {
+        public NewRelicReporterThread(Pattern graphiteInclusionRegex,
+                                      Pattern graphiteExclusionRegex) {
             this.graphiteInclusionRegex = graphiteInclusionRegex;
             this.graphiteExclusionRegex = graphiteExclusionRegex;
         }
@@ -106,7 +108,8 @@ public class GraphiteService extends AbstractLifecycleComponent<GraphiteService>
                     NodeStats nodeStats = nodeService.stats(commonStatsFlags, true, true, true, true, true, true, true, true, true);
                     List<IndexShard> indexShards = getIndexShards(indicesService);
 
-                    GraphiteReporter graphiteReporter = new GraphiteReporter(graphiteHost, graphitePort, graphitePrefix,
+                    NewRelicReporter
+                        graphiteReporter = new NewRelicReporter(prefix,
                             nodeIndicesStats, indexShards, nodeStats, graphiteInclusionRegex, graphiteExclusionRegex);
                     graphiteReporter.run();
                 } else {
@@ -116,7 +119,7 @@ public class GraphiteService extends AbstractLifecycleComponent<GraphiteService>
                 }
 
                 try {
-                    Thread.sleep(graphiteRefreshInternal.millis());
+                    Thread.sleep(refreshInternal.millis());
                 } catch (InterruptedException e1) {
                     continue;
                 }
