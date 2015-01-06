@@ -28,7 +28,7 @@ newrelic/README.txt
 newrelic/newrelic.jar
 ```
 
-  * sudo bin/plugin install io.ingenieux/elasticsearch-newrelic-plugin/0.0.2
+  * sudo bin/plugin install io.ingenieux/elasticsearch-newrelic-plugin/0.2
 
   * Then, tweak /etc/default/elasticsearch, adding:
 
