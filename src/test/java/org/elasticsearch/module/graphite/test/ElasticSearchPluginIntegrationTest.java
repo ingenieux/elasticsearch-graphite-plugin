@@ -1,7 +1,7 @@
 package org.elasticsearch.module.graphite.test;
 
+import com.google.common.collect.Iterables;
 import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.common.collect.Iterables;
 import org.elasticsearch.common.inject.ProvisionException;
 import org.elasticsearch.node.Node;
 import org.junit.After;
@@ -10,7 +10,7 @@ import org.junit.Test;
 
 import java.util.UUID;
 
-import static org.elasticsearch.common.base.Predicates.containsPattern;
+import static com.google.common.base.Predicates.containsPattern;
 import static org.elasticsearch.module.graphite.test.NodeTestHelper.createNode;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -102,7 +102,7 @@ public class ElasticSearchPluginIntegrationTest {
         Node origNode = node;
         node = createNode(clusterName, GRAPHITE_SERVER_PORT, "1s");
         graphiteMockServer.content.clear();
-        origNode.stop();
+        origNode.close();
         indexResponse = indexElement(node, index, type, "value");
         assertThat(indexResponse.getId(), is(notNullValue()));
 

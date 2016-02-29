@@ -3,21 +3,27 @@ package org.elasticsearch.service.newrelic;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.common.collect.Lists;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.component.Lifecycle;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
-import org.elasticsearch.index.service.IndexService;
-import org.elasticsearch.index.shard.service.IndexShard;
+import org.elasticsearch.index.IndexService;
+import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.NodeIndicesStats;
+import org.elasticsearch.node.Node;
 import org.elasticsearch.node.service.NodeService;
 
+import org.elasticsearch.node.NodeBuilder;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -25,6 +31,7 @@ public class NewRelicService extends AbstractLifecycleComponent<NewRelicService>
 
     private final ClusterService clusterService;
     private final IndicesService indicesService;
+    private final Client client;
     private final boolean enabledP;
     private NodeService nodeService;
     private final TimeValue refreshInternal;
@@ -39,6 +46,8 @@ public class NewRelicService extends AbstractLifecycleComponent<NewRelicService>
                                    IndicesService indicesService,
                                    NodeService nodeService) {
         super(settings);
+        Node node = NodeBuilder.nodeBuilder().node();
+        this.client = node.client();
         this.clusterService = clusterService;
         this.indicesService = indicesService;
         this.nodeService = nodeService;
@@ -84,7 +93,11 @@ public class NewRelicService extends AbstractLifecycleComponent<NewRelicService>
     }
 
     @Override
-    protected void doClose() throws ElasticsearchException {}
+    protected void doClose() throws ElasticsearchException {
+        this.client.close();
+        this.indicesService.close();
+        this.clusterService.close();
+    }
 
     public class NewRelicReporterThread implements Runnable {
 
@@ -106,7 +119,7 @@ public class NewRelicService extends AbstractLifecycleComponent<NewRelicService>
                     NodeIndicesStats nodeIndicesStats = indicesService.stats(false);
                     CommonStatsFlags commonStatsFlags = new CommonStatsFlags().clear();
                     NodeStats nodeStats = nodeService.stats(commonStatsFlags, true, true, true, true, true, true, true, true, true);
-                    List<IndexShard> indexShards = getIndexShards(indicesService);
+                    List<IndexShard> indexShards = getIndexShards(client);
 
                     NewRelicReporter
                         graphiteReporter = new NewRelicReporter(prefix,
@@ -126,9 +139,10 @@ public class NewRelicService extends AbstractLifecycleComponent<NewRelicService>
             }
         }
 
-        private List<IndexShard> getIndexShards(IndicesService indicesService) {
-            List<IndexShard> indexShards = Lists.newArrayList();
-            for (String indexName : indicesService.indices().keySet()) {
+        private List<IndexShard> getIndexShards(Client client) {
+            ImmutableOpenMap<String, IndexMetaData> indices = client.admin().cluster().prepareState().get().getState().getMetaData().getIndices();
+            List<IndexShard> indexShards = new ArrayList<IndexShard>();
+            for (String indexName: indices.keys().toArray(String.class)) {
                 IndexService indexService = indicesService.indexServiceSafe(indexName);
                 for (int shardId : indexService.shardIds()) {
                     indexShards.add(indexService.shard(shardId));
