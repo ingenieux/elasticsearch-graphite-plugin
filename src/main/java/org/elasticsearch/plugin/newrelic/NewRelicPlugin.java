@@ -1,5 +1,6 @@
 package org.elasticsearch.plugin.newrelic;
 
+import com.google.common.collect.Lists;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.service.newrelic.NewRelicService;
@@ -19,7 +20,7 @@ public class NewRelicPlugin extends Plugin {
 
     @SuppressWarnings("rawtypes")
     @Override public Collection<Class<? extends LifecycleComponent>> nodeServices() {
-        Collection<Class<? extends LifecycleComponent>> services = Collections.emptyList();
+        Collection<Class<? extends LifecycleComponent>> services = Lists.newArrayList();
         services.add(NewRelicService.class);
         return services;
     }
