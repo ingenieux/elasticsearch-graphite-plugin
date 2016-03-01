@@ -4,6 +4,7 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
 import org.elasticsearch.action.admin.indices.stats.CommonStatsFlags;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -18,10 +19,8 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.NodeIndicesStats;
-import org.elasticsearch.node.Node;
 import org.elasticsearch.node.service.NodeService;
-
-import org.elasticsearch.node.NodeBuilder;
+import org.elasticsearch.plugin.newrelic.NewRelicPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,8 +45,7 @@ public class NewRelicService extends AbstractLifecycleComponent<NewRelicService>
                                    IndicesService indicesService,
                                    NodeService nodeService) {
         super(settings);
-        Node node = NodeBuilder.nodeBuilder().node();
-        this.client = node.client();
+        this.client = TransportClient.builder().addPlugin(NewRelicPlugin.class).settings(settings).build();
         this.clusterService = clusterService;
         this.indicesService = indicesService;
         this.nodeService = nodeService;

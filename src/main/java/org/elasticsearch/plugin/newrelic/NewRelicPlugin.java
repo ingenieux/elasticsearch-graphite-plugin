@@ -6,7 +6,6 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.service.newrelic.NewRelicService;
 
 import java.util.Collection;
-import java.util.Collections;
 
 public class NewRelicPlugin extends Plugin {
 
