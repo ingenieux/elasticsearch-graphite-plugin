@@ -6,8 +6,6 @@ import org.elasticsearch.action.admin.cluster.node.stats.NodeStats;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.http.HttpStats;
-import org.elasticsearch.index.cache.filter.FilterCacheStats;
-import org.elasticsearch.index.cache.id.IdCacheStats;
 import org.elasticsearch.index.fielddata.FieldDataStats;
 import org.elasticsearch.index.flush.FlushStats;
 import org.elasticsearch.index.get.GetStats;
@@ -16,13 +14,12 @@ import org.elasticsearch.index.merge.MergeStats;
 import org.elasticsearch.index.refresh.RefreshStats;
 import org.elasticsearch.index.search.stats.SearchStats;
 import org.elasticsearch.index.shard.DocsStats;
-import org.elasticsearch.index.shard.service.IndexShard;
+import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.store.StoreStats;
 import org.elasticsearch.index.warmer.WarmerStats;
 import org.elasticsearch.indices.NodeIndicesStats;
-import org.elasticsearch.monitor.fs.FsStats;
+import org.elasticsearch.monitor.fs.FsInfo;
 import org.elasticsearch.monitor.jvm.JvmStats;
-import org.elasticsearch.monitor.network.NetworkStats;
 import org.elasticsearch.monitor.os.OsStats;
 import org.elasticsearch.monitor.process.ProcessStats;
 import org.elasticsearch.threadpool.ThreadPoolStats;
@@ -68,7 +65,6 @@ public class NewRelicReporter {
         sendNodeFsStats(nodeStats.getFs());
         sendNodeHttpStats(nodeStats.getHttp());
         sendNodeJvmStats(nodeStats.getJvm());
-        sendNodeNetworkStats(nodeStats.getNetwork());
         sendNodeOsStats(nodeStats.getOs());
         sendNodeProcessStats(nodeStats.getProcess());
         sendNodeTransportStats(nodeStats.getTransport());
@@ -103,105 +99,68 @@ public class NewRelicReporter {
     private void sendNodeProcessStats(ProcessStats processStats) {
         String type = buildMetricName("node.process");
 
-        sendInt(type, "openFileDescriptors", processStats.openFileDescriptors());
-        if (processStats.cpu() != null) {
-            sendInt(type + ".cpu", "percent", processStats.cpu().percent());
-            sendInt(type + ".cpu", "sysSeconds", processStats.cpu().sys().seconds());
-            sendInt(type + ".cpu", "totalSeconds", processStats.cpu().total().seconds());
-            sendInt(type + ".cpu", "userSeconds", processStats.cpu().user().seconds());
+        sendInt(type, "openFileDescriptors", processStats.getOpenFileDescriptors());
+        if (processStats.getCpu() != null) {
+            sendInt(type + ".cpu", "percent", processStats.getCpu().getPercent());
+            sendInt(type + ".cpu", "totalSeconds", processStats.getCpu().getTotal().seconds());
         }
 
-        if (processStats.mem() != null) {
-            sendInt(type + ".mem", "totalVirtual", processStats.mem().totalVirtual().bytes());
-            sendInt(type + ".mem", "resident", processStats.mem().resident().bytes());
-            sendInt(type + ".mem", "share", processStats.mem().share().bytes());
+        if (processStats.getMem() != null) {
+            sendInt(type + ".mem", "totalVirtual", processStats.getMem().getTotalVirtual().bytes());
         }
     }
 
     private void sendNodeOsStats(OsStats osStats) {
         String type = buildMetricName("node.os");
 
-        if (osStats.cpu() != null) {
-            sendInt(type + ".cpu", "sys", osStats.cpu().sys());
-            sendInt(type + ".cpu", "idle", osStats.cpu().idle());
-            sendInt(type + ".cpu", "user", osStats.cpu().user());
+        sendInt(type + ".cpu", "sys", osStats.getCpuPercent());
+
+        if (osStats.getMem() != null) {
+            sendInt(type + ".mem", "freeBytes", osStats.getMem().getFree().bytes());
+            sendInt(type + ".mem", "usedBytes", osStats.getMem().getUsed().bytes());
+            sendInt(type + ".mem", "freePercent", osStats.getMem().getFreePercent());
+            sendInt(type + ".mem", "usedPercent", osStats.getMem().getUsedPercent());
         }
 
-        if (osStats.mem() != null) {
-            sendInt(type + ".mem", "freeBytes", osStats.mem().free().bytes());
-            sendInt(type + ".mem", "usedBytes", osStats.mem().used().bytes());
-            sendInt(type + ".mem", "freePercent", osStats.mem().freePercent());
-            sendInt(type + ".mem", "usedPercent", osStats.mem().usedPercent());
-            sendInt(type + ".mem", "actualFreeBytes", osStats.mem().actualFree().bytes());
-            sendInt(type + ".mem", "actualUsedBytes", osStats.mem().actualUsed().bytes());
-        }
-
-        if (osStats.swap() != null) {
-            sendInt(type + ".swap", "freeBytes", osStats.swap().free().bytes());
-            sendInt(type + ".swap", "usedBytes", osStats.swap().used().bytes());
-        }
-    }
-
-    private void sendNodeNetworkStats(NetworkStats networkStats) {
-        String type = buildMetricName("node.network.tcp");
-        NetworkStats.Tcp tcp = networkStats.tcp();
-
-        // might be null, if sigar isnt loaded
-        if (tcp != null) {
-            sendInt(type, "activeOpens", tcp.activeOpens());
-            sendInt(type, "passiveOpens", tcp.passiveOpens());
-            sendInt(type, "attemptFails", tcp.attemptFails());
-            sendInt(type, "estabResets", tcp.estabResets());
-            sendInt(type, "currEstab", tcp.currEstab());
-            sendInt(type, "inSegs", tcp.inSegs());
-            sendInt(type, "outSegs", tcp.outSegs());
-            sendInt(type, "retransSegs", tcp.retransSegs());
-            sendInt(type, "inErrs", tcp.inErrs());
-            sendInt(type, "outRsts", tcp.outRsts());
+        if (osStats.getSwap() != null) {
+            sendInt(type + ".swap", "totalBytes", osStats.getSwap().getTotal().bytes());
+            sendInt(type + ".swap", "freeBytes", osStats.getSwap().getFree().bytes());
+            sendInt(type + ".swap", "usedBytes", osStats.getSwap().getUsed().bytes());
         }
     }
 
     private void sendNodeJvmStats(JvmStats jvmStats) {
         String type = buildMetricName("node.jvm");
-        sendInt(type, "uptime", jvmStats.uptime().seconds());
+        sendInt(type, "uptime", jvmStats.getUptime().seconds());
 
         // mem
-        sendInt(type + ".mem", "heapCommitted", jvmStats.mem().heapCommitted().bytes());
-        sendInt(type + ".mem", "heapUsed", jvmStats.mem().heapUsed().bytes());
-        sendInt(type + ".mem", "nonHeapCommitted", jvmStats.mem().nonHeapCommitted().bytes());
-        sendInt(type + ".mem", "nonHeapUsed", jvmStats.mem().nonHeapUsed().bytes());
+        sendInt(type + ".mem", "heapCommitted", jvmStats.getMem().getHeapCommitted().bytes());
+        sendInt(type + ".mem", "heapUsed", jvmStats.getMem().getHeapUsed().bytes());
+        sendInt(type + ".mem", "nonHeapCommitted", jvmStats.getMem().getNonHeapCommitted().bytes());
+        sendInt(type + ".mem", "nonHeapUsed", jvmStats.getMem().getNonHeapUsed().bytes());
 
-        Iterator<JvmStats.MemoryPool> memoryPoolIterator = jvmStats.mem().iterator();
+        Iterator<JvmStats.MemoryPool> memoryPoolIterator = jvmStats.getMem().iterator();
         while (memoryPoolIterator.hasNext()) {
             JvmStats.MemoryPool memoryPool = memoryPoolIterator.next();
-            String memoryPoolType = type + ".mem.pool." + memoryPool.name();
+            String memoryPoolType = type + ".mem.pool." + memoryPool.getName();
 
-            sendInt(memoryPoolType, "max", memoryPool.max().bytes());
-            sendInt(memoryPoolType, "used", memoryPool.used().bytes());
-            sendInt(memoryPoolType, "peakUsed", memoryPool.peakUsed().bytes());
-            sendInt(memoryPoolType, "peakMax", memoryPool.peakMax().bytes());
+            sendInt(memoryPoolType, "max", memoryPool.getMax().bytes());
+            sendInt(memoryPoolType, "used", memoryPool.getUsed().bytes());
+            sendInt(memoryPoolType, "peakUsed", memoryPool.getPeakUsed().bytes());
+            sendInt(memoryPoolType, "peakMax", memoryPool.getPeakMax().bytes());
         }
 
         // threads
-        sendInt(type + ".threads", "count", jvmStats.threads().count());
-        sendInt(type + ".threads", "peakCount", jvmStats.threads().peakCount());
+        sendInt(type + ".threads", "count", jvmStats.getThreads().getCount());
+        sendInt(type + ".threads", "peakCount", jvmStats.getThreads().getPeakCount());
 
         // garbage collectors
-        for (JvmStats.GarbageCollector collector : jvmStats.gc().collectors()) {
-            String id = type + ".gc." + collector.name();
-            sendInt(id, "collectionCount", collector.collectionCount());
-            sendInt(id, "collectionTimeSeconds", collector.collectionTime().seconds());
+        for (JvmStats.GarbageCollector collector : jvmStats.getGc().getCollectors()) {
+            String id = type + ".gc." + collector.getName();
+            sendInt(id, "collectionCount", collector.getCollectionCount());
+            sendInt(id, "collectionTimeSeconds", collector.getCollectionTime().seconds());
 
-            JvmStats.GarbageCollector.LastGc lastGc = collector.lastGc();
-            String lastGcType = type + ".lastGc";
-            if (lastGc != null) {
-                sendInt(lastGcType, "startTime", lastGc.startTime());
-                sendInt(lastGcType, "endTime", lastGc.endTime());
-                sendInt(lastGcType, "max", lastGc.max().bytes());
-                sendInt(lastGcType, "beforeUsed", lastGc.beforeUsed().bytes());
-                sendInt(lastGcType, "afterUsed", lastGc.afterUsed().bytes());
-                sendInt(lastGcType, "durationSeconds", lastGc.duration().seconds());
-            }
+            // TODO: get young and old metrics when elasticsearch Java SDK support it.
         }
 
         // TODO: bufferPools - where to get them?
@@ -213,21 +172,15 @@ public class NewRelicReporter {
         sendInt(type, "totalOpen", httpStats.getTotalOpen());
     }
 
-    private void sendNodeFsStats(FsStats fs) {
-        Iterator<FsStats.Info> infoIterator = fs.iterator();
+    private void sendNodeFsStats(FsInfo fi) {
+        Iterator<FsInfo.Path> infoIterator = fi.iterator();
         int i = 0;
         while (infoIterator.hasNext()) {
             String type = buildMetricName("node.fs") + i;
-            FsStats.Info info = infoIterator.next();
+            FsInfo.Path info = infoIterator.next();
             sendInt(type, "available", info.getAvailable().bytes());
             sendInt(type, "total", info.getTotal().bytes());
             sendInt(type, "free", info.getFree().bytes());
-            sendInt(type, "diskReads", info.getDiskReads());
-            sendInt(type, "diskReadsInBytes", info.getDiskReadSizeInBytes());
-            sendInt(type, "diskWrites", info.getDiskWrites());
-            sendInt(type, "diskWritesInBytes", info.getDiskWriteSizeInBytes());
-            sendFloat(type, "diskQueue", info.getDiskQueue());
-            sendFloat(type, "diskService", info.getDiskServiceTime());
             i++;
         }
     }
@@ -272,8 +225,6 @@ public class NewRelicReporter {
 
     private void sendNodeIndicesStats() {
         String type = buildMetricName("node");
-        sendFilterCacheStats(type + ".filtercache", nodeIndicesStats.getFilterCache());
-        sendIdCacheStats(type + ".idcache", nodeIndicesStats.getIdCache());
         sendDocsStats(type + ".docs", nodeIndicesStats.getDocs());
         sendFlushStats(type + ".flush", nodeIndicesStats.getFlush());
         sendGetStats(type + ".get", nodeIndicesStats.getGet());
@@ -346,15 +297,6 @@ public class NewRelicReporter {
     private void sendDocsStats(String name, DocsStats docsStats) {
         sendInt(name, "count", docsStats.getCount());
         sendInt(name, "deleted", docsStats.getDeleted());
-    }
-
-    private void sendIdCacheStats(String name, IdCacheStats idCache) {
-        sendInt(name, "memorySizeInBytes", idCache.getMemorySizeInBytes());
-    }
-
-    private void sendFilterCacheStats(String name, FilterCacheStats filterCache) {
-        sendInt(name, "memorySizeInBytes", filterCache.getMemorySizeInBytes());
-        sendInt(name, "evictions", filterCache.getEvictions());
     }
 
     private void sendFieldDataStats(String name, FieldDataStats fieldDataStats) {
